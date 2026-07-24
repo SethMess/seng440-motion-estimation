@@ -1,51 +1,32 @@
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 
+// Size of comparison blocks
 #define BLOCK_SIZE 16
+// Amount of pixels to search on either side of the search block
 #define SEARCH_RANGE 16
-#define FRAME_WIDTH 1280
-#define FRAME_HEIGHT 720
+#define FRAME_WIDTH 320
+#define FRAME_HEIGHT 240
 
-// Idea to represent the video stream we can change if something else makes more sense.
-typedef struct {
-    int frame_count;
-    int height;
-    int width;
-    unsigned char **frame;   // Double pointer: array of frame row pointers
-    unsigned char *raw_data; // Flat memory block of all pixel brightness values
-} GrayVideoStream;
+// TODO: maybe have a struct for storing the frames?
 
 int main() {
   printf("Hello World!\n");
   const char* video_path = "jojo-op.mp4";
 
-    // This could be extracted to its own setup function
-
-    int width = FRAME_WIDTH;
-    int height = FRAME_HEIGHT;
-    int channels = 3; // 3 for RGB24 format
-    int total_frames = 100; // Number of frames you want to load
-
-    // 2. Calculate dynamic dimensions
-    // Rows = total number of frames in the video sequence
-    // Columns = total bytes required for a single decoded frame
-    int rows = total_frames;
-    int cols = height * width * channels;
-
-    printf("Allocating memory for a 2D array: %d rows x %d columns...\n", rows, cols);
-
-    // 3. Allocate a 2D array using a single contiguous block via malloc
-    // This approach prevents cache misses and simplifies freeing memory
-    //
-    // TODO: Change this line possibly and make it work with a struct
-    unsigned char *video_matrix = (unsigned char *)malloc(rows * cols * sizeof(unsigned char));
-
-    // TODO: finish rest of video alloc
 
 
 }
 
+// TODO: Seth: load frame files to two malloc buffers
+// Read a PGM frame file into malloc buffer
+uint8_t *load_pgm(const char *path, int *w, int *h){
 
+  return 0;
+}
+
+// Can remove this probably
 // This is starting as the unoptimised version from slide 11 of the pdf
 int oneBlockOfImage_unoptimized(){
   int A [16][16] , B [16][16] , diff , sad = 0;
@@ -63,10 +44,42 @@ int oneBlockOfImage_unoptimized(){
 }
 
 
-// Front loop unrolling 1 slide
-//
-// x and y are the position
-int oneBlockOfImage(int x, int y){
+// TODO: integrate starter code into an actual function// TODO:  integrate starter code into an actual function
+// Sum |cur - ref| over one 16x16 block; (x,y) = block pos, (r,s) = offset.
+// One implementation per variant, same signature so they're interchangeable.
+/**
+ * sad_baseline — distortion metric for one candidate position.
+ *
+ * Computes the Sum of Absolute Differences between a 16x16 block in
+ * the current frame and a 16x16 block in the reference frame shifted
+ * by a candidate offset.
+ *
+ * @param cur     Pointer to the current frame's pixel buffer (the newer
+ *                frame, the one being "explained"). Flat array, row-major.
+ * @param ref     Pointer to the reference frame's pixel buffer (the
+ *                previous frame we search inside).
+ * @param x, y    Top-left corner of the block in the CURRENT frame.
+ *                Always a multiple of 16 in this project, since blocks tile
+ *                the frame without overlapping.
+ * @param r, s    Candidate motion offset: horizontal (r) and vertical (s)
+ *                displacement to apply when reading from the reference
+ *                frame. May be negative. The reference block's corner is
+ *                (x+r, y+s).
+ * @param stride  Number of bytes between the start of one row and the
+ *                next in both buffers (= frame width here, 320).
+ *                Lets pixel (col, row) be found at buf[row*stride + col].
+ *
+ *                Note: default for this is probably 1 for our algorithm.
+ *
+ * @return  Sum over all 256 pixel pairs of |cur_pixel - ref_pixel|.
+ *          Range 0..65280 (256 x 255), so it fits in 16 bits, but
+ *          returned as uint32_t for convenience. 0 = perfect match.
+ *
+ * Assumes the caller has already guaranteed (x+r, y+s) keeps the whole
+ * 16x16 reference block inside the frame — no bounds checking here,
+ * because this function runs ~330k times per frame and must stay lean.
+ */
+uint32_t sad_baseline(const uint8_t *cur, const uint8_t *ref, int x, int y, int r, int s, int stride){
 
   int A [16][16] , B [16][16] , diff1 , diff2 , sad = 0;
   int i , j;
@@ -89,4 +102,45 @@ int oneBlockOfImage(int x, int y){
       }
     }
   }
+  return 0;
 }
+
+// Would be similar as the one above but using neo instructions
+uint32_t sad_neon();
+
+// This can be our implementation that will use a custom sad instruction
+uint32_t sad_custom_asm();
+
+
+// TODO:
+/**
+ * find_motion_vector — best-match search for ONE block.
+ *
+ * Exhaustively evaluates every candidate offset (r, s) in the search
+ * window around the block's own position and records the offset with
+ * the minimum SAD. This is the "full search" — optimal within the
+ * window by construction.
+ *
+ * @param sad     Function pointer selecting which SAD kernel to use
+ *                (baseline / ternary / NEON). This is the only thing
+ *                that changes between benchmark runs; the search logic
+ *                itself is identical for all variants.
+ * @param cur     Current frame buffer.
+ * @param ref     Reference frame buffer.
+ * @param x, y    Top-left corner of the block being matched.
+ * @param w, h    Frame dimensions (320, 240). Needed here — unlike in
+ *                the SAD kernel — because THIS function is the one
+ *                responsible for clamping the window so that no
+ *                candidate reads outside the frame.
+ * @param best_r  Out-parameter: receives the winning horizontal offset,
+ *                in the range [-16, +16] (narrower near frame edges).
+ * @param best_s  Out-parameter: receives the winning vertical offset.
+ *
+ * The (best_r, best_s) pair IS the motion vector for this block —
+ * "this block appears to have come from (x+best_r, y+best_s) in the
+ * previous frame."
+ *
+ * Cost: up to 33 x 33 = 1089 SAD calls per block; fewer at edges.
+ */
+// Note this could be set up to have the sad_fn be a variable with what sad function to point to but we can do conditional compilation or something else.
+void find_motion_vector(/*sad_fn sad,*/ const uint8_t *cur, const uint8_t *ref, int x, int y, int w, int h, int *best_r, int *best_s);
