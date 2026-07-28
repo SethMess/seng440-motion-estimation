@@ -14,7 +14,7 @@
 
 // TODO: Seth: load frame files to two malloc buffers DONE?
 // Read a PGM frame file into malloc buffer
-uint8_t *load_frame(const char *path, int *w, int *h){
+uint8_t *load_frame (const char *path, int *w, int *h){
 
   FILE *frame = fopen(path, "rb"); // opens in read binary mode, should be portable.
   if (frame == NULL){
@@ -89,7 +89,7 @@ uint8_t *load_frame(const char *path, int *w, int *h){
  * 16x16 reference block inside the frame — no bounds checking here,
  * because this function runs ~330k times per frame and must stay lean.
  */
-uint32_t sad_baseline(const uint8_t *cur_frame, const uint8_t *next_frame, int x, int y, int r, int s, int stride){
+uint32_t sad_baseline(int stride, const uint8_t cur_frame[][stride], const uint8_t next_frame[][stride], int x, int y, int r, int s){
 
     // TODO: fix array indexing for cur frame and next frame to be 2d arrays.
     /* int A[16][16], B[16][16], */
@@ -114,7 +114,7 @@ uint32_t sad_baseline(const uint8_t *cur_frame, const uint8_t *next_frame, int x
             }
         }
     }
-    return 0;
+    return sad;
 }
 
 // Would be similar as the one above but using neo instructions
@@ -155,8 +155,8 @@ uint32_t sad_custom_asm();
  * Cost: up to 33 x 33 = 1089 SAD calls per block; fewer at edges.
  */
 // Note this could be set up to have the sad_fn be a variable with what sad function to point to but we can do conditional compilation or something else.
-void find_motion_vector(const uint8_t *cur_frame, const uint8_t *next_frame,
-                        int x, int y, int w, int h, int *best_r, int *best_s) {
+void find_motion_vector(int w, int h, const uint8_t cur_frame[w][h], const uint8_t next_frame[w][h],
+                        int x, int y, int *best_r, int *best_s) {
   uint32_t min_sad = 65280; // max SAD return value
   *best_r, *best_s = 0; // default to 0 if all SAD values are the same
   uint32_t cur_sad;
@@ -169,7 +169,7 @@ void find_motion_vector(const uint8_t *cur_frame, const uint8_t *next_frame,
       if((x + i) < 0 || (x + i) > (w-BLOCK_SIZE)) {
         continue;
       }
-      cur_sad = sad_baseline(cur_frame, next_frame, x, y, i, j, w);
+      cur_sad = sad_baseline(w, cur_frame, next_frame, x, y, i, j); // note stride is first param now so indexing works nice
       if(cur_sad < min_sad) {
         min_sad = cur_sad;
         *best_r = i;
@@ -177,13 +177,14 @@ void find_motion_vector(const uint8_t *cur_frame, const uint8_t *next_frame,
       }
     }
   }
+  printf("sad value: %d at (%d %d)\n", min_sad, x, y);
+
 }
 
 
 
-void find_all_motion_vectors(const uint8_t *cur_frame,
-                             const uint8_t *next_frame, int w,
-                             int h /*, int best_rs[][], int best_ss[][]*/) {
+void find_all_motion_vectors(int w, int h, const uint8_t cur_frame[w][h],
+                             const uint8_t next_frame[w][h]  /*, int best_rs[][], int best_ss[][]*/) {
 
     /* int num_blocks = (w / BLOCK_SIZE) * (h / BLOCK_SIZE); */
     int best_rs[w / BLOCK_SIZE][h / BLOCK_SIZE]; // horizontal motion vector
@@ -193,23 +194,26 @@ void find_all_motion_vectors(const uint8_t *cur_frame,
 
     for (i = 0; i < w; i += BLOCK_SIZE) {
         for (j = 0; j < h; j += BLOCK_SIZE) {
-            find_motion_vector(cur_frame, next_frame, i, j, w, h, &best_rs[i / BLOCK_SIZE][j / BLOCK_SIZE], &best_ss[i / BLOCK_SIZE][j / BLOCK_SIZE]);
+            find_motion_vector(i, j, cur_frame, next_frame, w, h, &best_rs[i / BLOCK_SIZE][j / BLOCK_SIZE], &best_ss[i / BLOCK_SIZE][j / BLOCK_SIZE]);
         }
     }
 }
 
 
 int main() {
-  printf("Hello World!\n");
+    printf("Hello World!\n");
 
-  const char* frame1 = "frames/frame1.pgm";
-  const char* frame2 = "frames/frame2.pgm";
+    const char* frame1 = "frames/frame1.pgm";
+    const char* frame2 = "frames/frame2.pgm";
 
-  int width;
-  int height;
+    int width;
+    int height;
 
-  uint8_t *frame1_buffer = load_frame(frame1, &width, &height); // cur frame
-  uint8_t *frame2_buffer = load_frame(frame2, &width, &height); // next frame
+    uint8_t *frame1_buffer = load_frame(frame1, &width, &height); // cur frame
+    uint8_t *frame2_buffer = load_frame(frame2, &width, &height); // next frame
 
+    const uint8_t (*cur_frame)[width] = (const uint8_t (*)[width]) frame1_buffer;  // newer = current
+    const uint8_t (*next_frame)[width] = (const uint8_t (*)[width]) frame2_buffer;  // older = reference
 
+    find_all_motion_vectors(width, height, cur_frame, next_frame);
 }
