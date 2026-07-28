@@ -91,14 +91,15 @@ uint8_t *load_frame(const char *path, int *w, int *h){
  */
 uint32_t sad_baseline(const uint8_t *cur_frame, const uint8_t *next_frame, int x, int y, int r, int s, int stride){
 
+    // TODO: fix array indexing for cur frame and next frame to be 2d arrays.
     /* int A[16][16], B[16][16], */
     int diff1 , diff2 , sad = 0;
     int i , j;
 
     for( i =0; i <16; i ++){
         for( j =0; j <16; j +=2) {
-            diff1 = A [ x + i ][ y + j ] - B [( x + r ) + i ][( y + s ) + j ];
-            diff2 = A [ x + i ][ y + j +1] - B [( x + r ) + i ][( y + s ) + j +1];
+            diff1 = cur_frame [ x + i ][ y + j ] - next_frame [( x + r ) + i ][( y + s ) + j ];
+            diff2 = cur_frame [ x + i ][ y + j +1] - next_frame [( x + r ) + i ][( y + s ) + j +1];
 
             if( diff1 < 0){
                 sad -= diff1 ;
@@ -182,9 +183,19 @@ void find_motion_vector(const uint8_t *cur_frame, const uint8_t *next_frame,
 
 void find_all_motion_vectors(const uint8_t *cur_frame,
                              const uint8_t *next_frame, int w,
-                             int h /*maybe more ... */) {
+                             int h /*, int best_rs[][], int best_ss[][]*/) {
 
+    /* int num_blocks = (w / BLOCK_SIZE) * (h / BLOCK_SIZE); */
+    int best_rs[w / BLOCK_SIZE][h / BLOCK_SIZE]; // horizontal motion vector
+    int best_ss[w / BLOCK_SIZE][h / BLOCK_SIZE]; // vertical motion vector
 
+    int i, j;
+
+    for (i = 0; i < w; i += BLOCK_SIZE) {
+        for (j = 0; j < h; j += BLOCK_SIZE) {
+            find_motion_vector(cur_frame, next_frame, i, j, w, h, &best_rs[i / BLOCK_SIZE][j / BLOCK_SIZE], &best_ss[i / BLOCK_SIZE][j / BLOCK_SIZE]);
+        }
+    }
 }
 
 
