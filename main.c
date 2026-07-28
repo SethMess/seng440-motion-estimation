@@ -156,8 +156,26 @@ uint32_t sad_custom_asm();
 // Note this could be set up to have the sad_fn be a variable with what sad function to point to but we can do conditional compilation or something else.
 void find_motion_vector(const uint8_t *cur_frame, const uint8_t *next_frame,
                         int x, int y, int w, int h, int *best_r, int *best_s) {
-
-
+  uint32_t min_sad = 65280; // max SAD return value
+  *best_r, *best_s = 0; // default to 0 if all SAD values are the same
+  uint32_t cur_sad;
+  int i,j;
+  for(j = -BLOCK_SIZE; j <= BLOCK_SIZE; j++) {
+    if((y + j) < 0 || (y + j) > (h-BLOCK_SIZE)) {
+      continue;
+    }
+    for(i = -BLOCK_SIZE; i <= BLOCK_SIZE; i++) {
+      if((x + i) < 0 || (x + i) > (w-BLOCK_SIZE)) {
+        continue;
+      }
+      cur_sad = sad_baseline(cur_frame, next_frame, x, y, i, j, w);
+      if(cur_sad < min_sad) {
+        min_sad = cur_sad;
+        *best_r = i;
+        *best_s = j;
+      }
+    }
+  }
 }
 
 
