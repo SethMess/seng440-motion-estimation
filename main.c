@@ -38,7 +38,7 @@ uint8_t *load_frame(const char *path, int *w, int *h){
 
 // Can remove this probably
 // This is starting as the unoptimised version from slide 11 of the pdf
-int oneBlockOfImage_unoptimized(){
+/* int oneBlockOfImage_unoptimized(){ */
   /* int A [16][16] , B [16][16] , diff , sad = 0; */
   /* int i , j ; */
 
@@ -51,8 +51,8 @@ int oneBlockOfImage_unoptimized(){
   /*       sad += diff ; */
   /*     } */
   /*   } */
-  return 0;
-}
+  /* return 0; */
+/* } */
 
 
 // TODO: integrate starter code into an actual function// TODO:  integrate starter code into an actual function
@@ -66,9 +66,9 @@ int oneBlockOfImage_unoptimized(){
  * by a candidate offset.
  *
  * @param cur     Pointer to the current frame's pixel buffer (the newer
- *                frame, the one being "explained"). Flat array, row-major.
- * @param ref     Pointer to the reference frame's pixel buffer (the
- *                previous frame we search inside).
+ *                frame, the one being "explained"). Flat array, row-major. ie frame 1
+ * @param next    Pointer to the next frame ie frame 2
+ *
  * @param x, y    Top-left corner of the block in the CURRENT frame.
  *                Always a multiple of 16 in this project, since blocks tile
  *                the frame without overlapping.
@@ -80,7 +80,6 @@ int oneBlockOfImage_unoptimized(){
  *                next in both buffers (= frame width here, 320).
  *                Lets pixel (col, row) be found at buf[row*stride + col].
  *
- *                Note: default for this is probably 1 for our algorithm.
  *
  * @return  Sum over all 256 pixel pairs of |cur_pixel - ref_pixel|.
  *          Range 0..65280 (256 x 255), so it fits in 16 bits, but
@@ -90,30 +89,31 @@ int oneBlockOfImage_unoptimized(){
  * 16x16 reference block inside the frame — no bounds checking here,
  * because this function runs ~330k times per frame and must stay lean.
  */
-uint32_t sad_baseline(const uint8_t *cur, const uint8_t *ref, int x, int y, int r, int s, int stride){
+uint32_t sad_baseline(const uint8_t *cur_frame, const uint8_t *next_frame, int x, int y, int r, int s, int stride){
 
-  int A [16][16] , B [16][16] , diff1 , diff2 , sad = 0;
-  int i , j;
+    /* int A[16][16], B[16][16], */
+    int diff1 , diff2 , sad = 0;
+    int i , j;
 
-  for( i =0; i <16; i ++){
-    for( j =0; j <16; j +=2) {
-      diff1 = A [ x + i ][ y + j ] - B [( x + r ) + i ][( y + s ) + j ];
-      diff2 = A [ x + i ][ y + j +1] - B [( x + r ) + i ][( y + s ) + j +1];
+    for( i =0; i <16; i ++){
+        for( j =0; j <16; j +=2) {
+            diff1 = A [ x + i ][ y + j ] - B [( x + r ) + i ][( y + s ) + j ];
+            diff2 = A [ x + i ][ y + j +1] - B [( x + r ) + i ][( y + s ) + j +1];
 
-      if( diff1 < 0){
-        sad -= diff1 ;
-      }else{
-        sad += diff1 ;
-      }
+            if( diff1 < 0){
+                sad -= diff1 ;
+            }else{
+                sad += diff1 ;
+            }
 
-      if( diff2 < 0){
-        sad -= diff2 ;
-      }else{
-        sad += diff2 ;
-      }
+            if( diff2 < 0){
+                sad -= diff2 ;
+            }else{
+                sad += diff2 ;
+            }
+        }
     }
-  }
-  return 0;
+    return 0;
 }
 
 // Would be similar as the one above but using neo instructions
@@ -136,8 +136,8 @@ uint32_t sad_custom_asm();
  *                (baseline / ternary / NEON). This is the only thing
  *                that changes between benchmark runs; the search logic
  *                itself is identical for all variants.
- * @param cur     Current frame buffer.
- * @param ref     Reference frame buffer.
+ * @param cur_frame     Current frame buffer.
+ * @param next_frame     Next frame buffer.
  * @param x, y    Top-left corner of the block being matched.
  * @param w, h    Frame dimensions (320, 240). Needed here — unlike in
  *                the SAD kernel — because THIS function is the one
@@ -154,15 +154,24 @@ uint32_t sad_custom_asm();
  * Cost: up to 33 x 33 = 1089 SAD calls per block; fewer at edges.
  */
 // Note this could be set up to have the sad_fn be a variable with what sad function to point to but we can do conditional compilation or something else.
-void find_motion_vector(/*sad_fn sad,*/ const uint8_t *cur, const uint8_t *ref, int x, int y, int w, int h, int *best_r, int *best_s);
+void find_motion_vector(const uint8_t *cur_frame, const uint8_t *next_frame,
+                        int x, int y, int w, int h, int *best_r, int *best_s) {
+
+
+}
 
 
 
+void find_all_motion_vectors(const uint8_t *cur_frame,
+                             const uint8_t *next_frame, int w,
+                             int h /*maybe more ... */) {
+
+
+}
 
 
 int main() {
   printf("Hello World!\n");
-  const char* video_path = "jojo-op.mp4";
 
   const char* frame1 = "frames/frame1.pgm";
   const char* frame2 = "frames/frame2.pgm";
@@ -170,7 +179,8 @@ int main() {
   int width;
   int height;
 
-  uint8_t *frame1_buffer = load_frame(frame1, &width, &height);
-  uint8_t *frame2_buffer = load_frame(frame2, &width, &height);
+  uint8_t *frame1_buffer = load_frame(frame1, &width, &height); // cur frame
+  uint8_t *frame2_buffer = load_frame(frame2, &width, &height); // next frame
+
 
 }
