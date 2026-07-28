@@ -11,36 +11,47 @@
 
 // TODO: maybe have a struct for storing the frames?
 
-int main() {
-  printf("Hello World!\n");
-  const char* video_path = "jojo-op.mp4";
 
-
-
-}
-
-// TODO: Seth: load frame files to two malloc buffers
+// TODO: Seth: load frame files to two malloc buffers DONE?
 // Read a PGM frame file into malloc buffer
-uint8_t *load_pgm(const char *path, int *w, int *h){
+uint8_t *load_frame(const char *path, int *w, int *h){
 
-  return 0;
+  FILE *frame = fopen(path, "rb"); // opens in read binary mode, should be portable.
+  if (frame == NULL){
+    return 0;
+  }
+
+  int maxval; // this should get set to 255
+  fscanf(frame, "P5 %d %d %d", w, h, &maxval);
+
+  uint8_t *frame_buffer = malloc(sizeof(uint8_t) * ((*w) * (*h)));
+  if (frame_buffer == NULL){
+    return 0;
+  }
+
+  fgetc(frame); // gets line separator and discards it
+  fread(frame_buffer, 1, (*w) * (*h), frame); // copy entire frame data into malloced buffer
+
+  printf("Read image of size: %d by %d.\n", (*w), (*h));
+  return frame_buffer;
 }
 
 // Can remove this probably
 // This is starting as the unoptimised version from slide 11 of the pdf
 int oneBlockOfImage_unoptimized(){
-  int A [16][16] , B [16][16] , diff , sad = 0;
-  int i , j ;
+  /* int A [16][16] , B [16][16] , diff , sad = 0; */
+  /* int i , j ; */
 
-  for( i =0; i <16; i ++)
-    for( j =0; j <16; j ++) {
-      diff = A [ x + i ][ y + j ] - B [( x + r ) + i ][( y + s ) + j ];
-      if( diff < 0){
-        sad -= diff ;
-      }else{
-        sad += diff ;
-      }
-    }
+  /* for( i =0; i <16; i ++) */
+  /*   for( j =0; j <16; j ++) { */
+  /*     diff = A [ x + i ][ y + j ] - B [( x + r ) + i ][( y + s ) + j ]; */
+  /*     if( diff < 0){ */
+  /*       sad -= diff ; */
+  /*     }else{ */
+  /*       sad += diff ; */
+  /*     } */
+  /*   } */
+  return 0;
 }
 
 
@@ -144,3 +155,22 @@ uint32_t sad_custom_asm();
  */
 // Note this could be set up to have the sad_fn be a variable with what sad function to point to but we can do conditional compilation or something else.
 void find_motion_vector(/*sad_fn sad,*/ const uint8_t *cur, const uint8_t *ref, int x, int y, int w, int h, int *best_r, int *best_s);
+
+
+
+
+
+int main() {
+  printf("Hello World!\n");
+  const char* video_path = "jojo-op.mp4";
+
+  const char* frame1 = "frames/frame1.pgm";
+  const char* frame2 = "frames/frame2.pgm";
+
+  int width;
+  int height;
+
+  uint8_t *frame1_buffer = load_frame(frame1, &width, &height);
+  uint8_t *frame2_buffer = load_frame(frame2, &width, &height);
+
+}
