@@ -65,20 +65,19 @@ uint8_t *load_frame (const char *path, int *w, int *h){
  * the current frame and a 16x16 block in the reference frame shifted
  * by a candidate offset.
  *
- * @param cur     Pointer to the current frame's pixel buffer (the newer
- *                frame, the one being "explained"). Flat array, row-major. ie frame 1
- * @param next    Pointer to the next frame ie frame 2
- *
- * @param x, y    Top-left corner of the block in the CURRENT frame.
- *                Always a multiple of 16 in this project, since blocks tile
- *                the frame without overlapping.
- * @param r, s    Candidate motion offset: horizontal (r) and vertical (s)
- *                displacement to apply when reading from the reference
- *                frame. May be negative. The reference block's corner is
- *                (x+r, y+s).
- * @param stride  Number of bytes between the start of one row and the
- *                next in both buffers (= frame width here, 320).
- *                Lets pixel (col, row) be found at buf[row*stride + col].
+ * @param stride        Number of bytes between the start of one row and the
+ *                      next in both buffers (= frame width here, 320).
+ *                      Lets pixel (col, row) be found at buf[row*stride + col].
+ * @param cur_frame     Pointer to the current frame's pixel buffer (the newer
+ *                      frame, the one being "explained"). Flat array, row-major. ie frame 1
+ * @param next_frame    Pointer to the next frame ie frame 2
+ * @param x, y          Top-left corner of the block in the CURRENT frame.
+ *                      Always a multiple of 16 in this project, since blocks tile
+ *                      the frame without overlapping.
+ * @param r, s          Candidate motion offset: horizontal (r) and vertical (s)
+ *                      displacement to apply when reading from the reference
+ *                      frame. May be negative. The reference block's corner is
+ *                      (x+r, y+s).
  *
  *
  * @return  Sum over all 256 pixel pairs of |cur_pixel - ref_pixel|.
@@ -117,44 +116,38 @@ uint32_t sad_baseline(int stride, const uint8_t cur_frame[][stride], const uint8
     return sad;
 }
 
-// Would be similar as the one above but using neo instructions
+// TODO: Would be similar as the one above but using neo instructions
 uint32_t sad_neon();
 
-// This can be our implementation that will use a custom sad instruction
+// TODO: This can be our implementation that will use a custom sad instruction
 uint32_t sad_custom_asm();
 
-
-// TODO:
 /**
  * find_motion_vector — best-match search for ONE block.
  *
  * Exhaustively evaluates every candidate offset (r, s) in the search
  * window around the block's own position and records the offset with
- * the minimum SAD. This is the "full search" — optimal within the
- * window by construction.
+ * the minimum SAD.
  *
- * @param sad     Function pointer selecting which SAD kernel to use
- *                (baseline / ternary / NEON). This is the only thing
- *                that changes between benchmark runs; the search logic
- *                itself is identical for all variants.
+ * @param w             Frame width
+ * @param h             Frame height
  * @param cur_frame     Current frame buffer.
- * @param next_frame     Next frame buffer.
- * @param x, y    Top-left corner of the block being matched.
- * @param w, h    Frame dimensions (320, 240). Needed here — unlike in
- *                the SAD kernel — because THIS function is the one
- *                responsible for clamping the window so that no
- *                candidate reads outside the frame.
- * @param best_r  Out-parameter: receives the winning horizontal offset,
- *                in the range [-16, +16] (narrower near frame edges).
- * @param best_s  Out-parameter: receives the winning vertical offset.
+ * @param next_frame    Next frame buffer.
+ * @param x             X-value (width) of top-left corner of the block being matched.
+ * @param y             Y-value (height) of top-left corner of block being matched.
+ * @param best_r        Out-parameter: receives the winning horizontal offset,
+ *                      in the range [-16, +16] (narrower near frame edges).
+ * @param best_s        Out-parameter: receives the winning vertical offset
+ *                      in the range [-16, +16].
  *
  * The (best_r, best_s) pair IS the motion vector for this block —
  * "this block appears to have come from (x+best_r, y+best_s) in the
  * previous frame."
  *
  * Cost: up to 33 x 33 = 1089 SAD calls per block; fewer at edges.
+ * Note this could be set up to have the sad_fn be a variable with 
+ * what sad function to point to but we can do conditional compilation or something else.
  */
-// Note this could be set up to have the sad_fn be a variable with what sad function to point to but we can do conditional compilation or something else.
 void find_motion_vector(int w, int h, const uint8_t cur_frame[w][h], const uint8_t next_frame[w][h],
                         int x, int y, int *best_r, int *best_s) {
   uint32_t min_sad = 65280; // max SAD return value
@@ -181,8 +174,17 @@ void find_motion_vector(int w, int h, const uint8_t cur_frame[w][h], const uint8
 
 }
 
-
-
+/**
+ * Find all motion vectors
+ * 
+ * For each block of pixels (BLOCK_SIZE x BLOCK_SIZE), stores the 
+ * motion vector for the nearest best matching pixel block.
+ * 
+ * @param w             Frame width
+ * @param h             Frame height
+ * @param cur_frame     Current frame buffer.
+ * @param next_frame    Next frame buffer.
+ */
 void find_all_motion_vectors(int w, int h, const uint8_t cur_frame[w][h],
                              const uint8_t next_frame[w][h]  /*, int best_rs[][], int best_ss[][]*/) {
 
@@ -194,7 +196,7 @@ void find_all_motion_vectors(int w, int h, const uint8_t cur_frame[w][h],
 
     for (i = 0; i < w; i += BLOCK_SIZE) {
         for (j = 0; j < h; j += BLOCK_SIZE) {
-            find_motion_vector(i, j, cur_frame, next_frame, w, h, &best_rs[i / BLOCK_SIZE][j / BLOCK_SIZE], &best_ss[i / BLOCK_SIZE][j / BLOCK_SIZE]);
+            find_motion_vector(w, h, cur_frame, next_frame, i, j, &best_rs[i / BLOCK_SIZE][j / BLOCK_SIZE], &best_ss[i / BLOCK_SIZE][j / BLOCK_SIZE]);
         }
     }
 }
