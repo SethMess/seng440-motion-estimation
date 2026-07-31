@@ -97,8 +97,8 @@ uint32_t sad_baseline(int stride, const uint8_t cur_frame[][stride], const uint8
 
     for( i =0; i <16; i ++){
         for( j =0; j <16; j +=2) {
-            diff1 = cur_frame [ x + i ][ y + j ] - next_frame [( x + r ) + i ][( y + s ) + j ];
-            diff2 = cur_frame [ x + i ][ y + j +1] - next_frame [( x + r ) + i ][( y + s ) + j +1];
+            diff1 = cur_frame [ y + i ][ x + j ] - next_frame [( y + s ) + i ][( x + r ) + j ];
+            diff2 = cur_frame [ y + i ][ x + j +1] - next_frame [( y + s ) + i ][( x + r ) + j +1];
 
             if( diff1 < 0){
                 sad -= diff1 ;
@@ -148,10 +148,11 @@ uint32_t sad_custom_asm();
  * Note this could be set up to have the sad_fn be a variable with 
  * what sad function to point to but we can do conditional compilation or something else.
  */
-void find_motion_vector(int w, int h, const uint8_t cur_frame[w][h], const uint8_t next_frame[w][h],
+void find_motion_vector(int w, int h, const uint8_t cur_frame[h][w], const uint8_t next_frame[h][w],
                         int x, int y, int *best_r, int *best_s) {
   uint32_t min_sad = 65280; // max SAD return value
-  *best_r, *best_s = 0; // default to 0 if all SAD values are the same
+  *best_r = 0; // default to 0 if all SAD values are the same
+  *best_s = 0; // default to 0 if all SAD values are the same
   uint32_t cur_sad;
   int i,j;
   for(j = -BLOCK_SIZE; j <= BLOCK_SIZE; j++) {
@@ -185,18 +186,18 @@ void find_motion_vector(int w, int h, const uint8_t cur_frame[w][h], const uint8
  * @param cur_frame     Current frame buffer.
  * @param next_frame    Next frame buffer.
  */
-void find_all_motion_vectors(int w, int h, const uint8_t cur_frame[w][h],
-                             const uint8_t next_frame[w][h]  /*, int best_rs[][], int best_ss[][]*/) {
+void find_all_motion_vectors(int w, int h, const uint8_t cur_frame[h][w],
+                             const uint8_t next_frame[h][w]  /*, int best_rs[][], int best_ss[][]*/) {
 
     /* int num_blocks = (w / BLOCK_SIZE) * (h / BLOCK_SIZE); */
-    int best_rs[w / BLOCK_SIZE][h / BLOCK_SIZE]; // horizontal motion vector
-    int best_ss[w / BLOCK_SIZE][h / BLOCK_SIZE]; // vertical motion vector
+    int best_rs[h / BLOCK_SIZE][w / BLOCK_SIZE]; // horizontal motion vector
+    int best_ss[h / BLOCK_SIZE][w / BLOCK_SIZE]; // vertical motion vector
 
     int i, j;
 
-    for (i = 0; i < w; i += BLOCK_SIZE) {
-        for (j = 0; j < h; j += BLOCK_SIZE) {
-            find_motion_vector(w, h, cur_frame, next_frame, i, j, &best_rs[i / BLOCK_SIZE][j / BLOCK_SIZE], &best_ss[i / BLOCK_SIZE][j / BLOCK_SIZE]);
+    for (i = 0; i < h; i += BLOCK_SIZE) {
+        for (j = 0; j < w; j += BLOCK_SIZE) {
+            find_motion_vector(w, h, cur_frame, next_frame, j, i, &best_rs[i / BLOCK_SIZE][j / BLOCK_SIZE], &best_ss[i / BLOCK_SIZE][j / BLOCK_SIZE]);
         }
     }
 }
@@ -214,6 +215,7 @@ int main() {
     uint8_t *frame1_buffer = load_frame(frame1, &width, &height); // cur frame
     uint8_t *frame2_buffer = load_frame(frame2, &width, &height); // next frame
 
+    // TODO: make sure this casting is correct
     const uint8_t (*cur_frame)[width] = (const uint8_t (*)[width]) frame1_buffer;  // newer = current
     const uint8_t (*next_frame)[width] = (const uint8_t (*)[width]) frame2_buffer;  // older = reference
 
