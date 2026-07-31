@@ -218,4 +218,8 @@ int main() {
     const uint8_t (*next_frame)[width] = (const uint8_t (*)[width]) frame2_buffer;  // older = reference
 
     find_all_motion_vectors(width, height, cur_frame, next_frame);
+
+    free(frame1_buffer);
+    free(frame2_buffer);
+    printf("Freed frame memory\n");
 }
