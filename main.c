@@ -121,6 +121,73 @@ uint32_t sad_baseline(int stride, const uint8_t cur_frame[][stride], const uint8
     return sad;
 }
 
+// SAD calculation with software pipelining
+uint32_t sad_pipelining(int stride, const uint8_t cur_frame[][stride], const uint8_t next_frame[][stride], int x, int y, int r, int s){
+  int diff , sad = 0;
+  int i , j;
+
+  diff = cur_frame [ y + 0 ][ x + 0 ] - next_frame [( y + s ) + 0 ][( x + r ) + 0 ];
+  for( i =0; i <16; i ++){
+      for( j =0; j <16; j +=2) {
+
+          if( diff < 0){
+              sad -= diff ;
+          }else{
+              sad += diff ;
+          }
+
+          diff = cur_frame [ y + i+1 ][ x + j+1 ] - next_frame [( y + s ) + i+1 ][( x + r ) + j+1 ];
+      }
+      if( diff < 0){
+          sad -= diff ;
+      }else{
+          sad += diff ;
+      }
+  }
+  return sad;
+}
+
+// SAD calculation with loop unrolling and software pipelining
+uint32_t sad_pipelining_with_unroll(int stride, const uint8_t cur_frame[][stride], const uint8_t next_frame[][stride], int x, int y, int r, int s){
+  int diff1 , diff2 , sad = 0;
+  int i , j;
+
+  diff1 = cur_frame [ y + 0 ][ x + 0 ] - next_frame [( y + s ) + 0 ][( x + r ) + 0 ];
+  diff2 = cur_frame [ y + 0 ][ x + 0 +1] - next_frame [( y + s ) + 0 ][( x + r ) + 0 +1];
+  for( i =0; i <16; i ++){
+      for( j =0; j <16; j +=2) {
+
+          if( diff1 < 0){
+              sad -= diff1 ;
+          }else{
+              sad += diff1 ;
+          }
+
+          if( diff2 < 0){
+              sad -= diff2 ;
+          }else{
+              sad += diff2 ;
+          }
+
+          diff1 = cur_frame [ y + i+1 ][ x + j+1 ] - next_frame [( y + s ) + i+1 ][( x + r ) + j+1 ];
+          diff2 = cur_frame [ y + i+1 ][ x + j+2 ] - next_frame [( y + s ) + i+1 ][( x + r ) + j+2 ];
+      }
+      if( diff1 < 0){
+          sad -= diff1 ;
+      }else{
+          sad += diff1 ;
+      }
+
+      if( diff2 < 0){
+          sad -= diff2 ;
+      }else{
+          sad += diff2 ;
+      }
+  }
+  return sad;
+}
+
+
 // TODO: Would be similar as the one above but using neo instructions
 uint32_t sad_neon(int stride, const uint8_t cur_frame[][stride], const uint8_t next_frame[][stride], int x, int y, int r, int s){
   return 0;
@@ -180,6 +247,12 @@ void find_motion_vector(int w, int h, const uint8_t cur_frame[h][w], const uint8
 #endif
 #ifdef SAD_ASM
       cur_sad = sad_custom_asm(w, cur_frame, next_frame, x, y, i, j); // note stride is first param now so indexing works nice
+#endif
+#ifdef SAD_PIPELINE
+      cur_sad = sad_pipelining(w, cur_frame, next_frame, x, y, i, j);
+#endif
+#ifdef SAD_PIPELINE_UNROLL
+      cur_sad = sad_pipelining_with_unroll(w, cur_frame, next_frame, x, y, i, j);
 #endif
       if(cur_sad < min_sad) {
         min_sad = cur_sad;
