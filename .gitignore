@@ -1,0 +1,6 @@
+*.exe
+*.asm
+baseline
+neon
+asm
+main
