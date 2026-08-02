@@ -2,6 +2,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#ifdef SAD_NEON
+#include <arm_neon.h>
+#endif
+
+
 // Size of comparison blocks
 #define BLOCK_SIZE 16
 // Amount of pixels to search on either side of the search block
@@ -117,10 +122,14 @@ uint32_t sad_baseline(int stride, const uint8_t cur_frame[][stride], const uint8
 }
 
 // TODO: Would be similar as the one above but using neo instructions
-uint32_t sad_neon();
+uint32_t sad_neon(int stride, const uint8_t cur_frame[][stride], const uint8_t next_frame[][stride], int x, int y, int r, int s){
+  return 0;
+}
 
 // TODO: This can be our implementation that will use a custom sad instruction
-uint32_t sad_custom_asm();
+uint32_t sad_custom_asm(int stride, const uint8_t cur_frame[][stride], const uint8_t next_frame[][stride], int x, int y, int r, int s){
+  return 0;
+}
 
 /**
  * find_motion_vector — best-match search for ONE block.
@@ -163,7 +172,15 @@ void find_motion_vector(int w, int h, const uint8_t cur_frame[h][w], const uint8
       if((x + i) < 0 || (x + i) > (w-BLOCK_SIZE)) {
         continue;
       }
+#ifdef SAD_BASELINE
       cur_sad = sad_baseline(w, cur_frame, next_frame, x, y, i, j); // note stride is first param now so indexing works nice
+#endif
+#ifdef SAD_NEON
+      cur_sad = sad_neon(w, cur_frame, next_frame, x, y, i, j); // note stride is first param now so indexing works nice
+#endif
+#ifdef SAD_ASM
+      cur_sad = sad_custom_asm(w, cur_frame, next_frame, x, y, i, j); // note stride is first param now so indexing works nice
+#endif
       if(cur_sad < min_sad) {
         min_sad = cur_sad;
         *best_r = i;
