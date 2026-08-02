@@ -95,8 +95,6 @@ uint8_t *load_frame (const char *path, int *w, int *h){
  */
 uint32_t sad_baseline(int stride, const uint8_t cur_frame[][stride], const uint8_t next_frame[][stride], int x, int y, int r, int s){
 
-    // TODO: fix array indexing for cur frame and next frame to be 2d arrays.
-    /* int A[16][16], B[16][16], */
     int diff1 , diff2 , sad = 0;
     int i , j;
 
@@ -123,7 +121,39 @@ uint32_t sad_baseline(int stride, const uint8_t cur_frame[][stride], const uint8
 
 // TODO: Would be similar as the one above but using neo instructions
 uint32_t sad_neon(int stride, const uint8_t cur_frame[][stride], const uint8_t next_frame[][stride], int x, int y, int r, int s){
-  return 0;
+
+    int diff1 , diff2 , sad = 0;
+    int i , j;
+
+    /* for( i =0; i <16; i ++){ */
+    /*     for( j =0; j <16; j +=4) { */
+    /*         diff1 = cur_frame [ y + i ][ x + j ] - next_frame [( y + s ) + i ][( x + r ) + j ]; */
+    /*         diff2 = cur_frame [ y + i ][ x + j +1] - next_frame [( y + s ) + i ][( x + r ) + j +1]; */
+
+    /*         if( diff1 < 0){ */
+    /*             sad -= diff1 ; */
+    /*         }else{ */
+    /*             sad += diff1 ; */
+    /*         } */
+
+    /*         if( diff2 < 0){ */
+    /*             sad -= diff2 ; */
+    /*         }else{ */
+    /*             sad += diff2 ; */
+    /*         } */
+    /*     } */
+    /* } */
+
+    for( i =0; i <16; i ++){
+      // TODO: add proper neon intrinsics
+      // load with vld1q_u8(ptr) cur and next
+      // take abs diff on both
+      // accumulate
+      // add to sad
+
+    }
+    return sad;
+
 }
 
 // TODO: This can be our implementation that will use a custom sad instruction
