@@ -95,6 +95,26 @@ uint8_t *load_frame (const char *path, int *w, int *h){
  */
 uint32_t sad_baseline(int stride, const uint8_t cur_frame[][stride], const uint8_t next_frame[][stride], int x, int y, int r, int s){
 
+    int diff , sad = 0;
+    int i , j;
+
+    for( i =0; i <16; i ++){
+        for( j =0; j <16; j ++) {
+            diff = cur_frame [ y + i ][ x + j ] - next_frame [( y + s ) + i ][( x + r ) + j ];
+
+            if( diff < 0){
+                sad -= diff ;
+            }else{
+                sad += diff ;
+            }
+        }
+    }
+    return sad;
+}
+
+// SAD calculation with loop unrolling
+uint32_t sad_unrolling(int stride, const uint8_t cur_frame[][stride], const uint8_t next_frame[][stride], int x, int y, int r, int s){
+
     int diff1 , diff2 , sad = 0;
     int i , j;
 
@@ -277,6 +297,9 @@ void find_motion_vector(int w, int h, const uint8_t cur_frame[h][w], const uint8
       }
 #ifdef SAD_BASELINE
       cur_sad = sad_baseline(w, cur_frame, next_frame, x, y, i, j); // note stride is first param now so indexing works nice
+#endif
+#ifdef SAD_UNROLL
+      cur_sad = sad_unrolling(w, cur_frame, next_frame, x, y, i, j);
 #endif
 #if defined(SAD_NEON) && defined(__ARM_NEON)
       cur_sad = sad_neon(w, cur_frame, next_frame, x, y, i, j); // note stride is first param now so indexing works nice

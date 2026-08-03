@@ -15,6 +15,9 @@ non-vm-baseline: main.c
 baseline: main.c
 	gcc $(CFLAGS) -DSAD_BASELINE main.c -o baseline
 
+unroll: main.c
+	gcc $(CFLAGS) -DSAD_UNROLL main.c -o unroll
+
 pipeline: main.c
 	gcc $(CFLAGS) -DSAD_PIPELINE main.c -o pipeline
 
@@ -29,7 +32,7 @@ asm: main.c
 
 # Clean target to delete executables and start fresh
 clean:
-	rm -f baseline neon asm pipeline pipeline_unroll non-vm-baseline
+	rm -f baseline unroll neon asm pipeline pipeline_unroll non-vm-baseline
 
 
 # end
