@@ -2,8 +2,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#ifdef SAD_NEON
-#include <arm_neon.h>
+#ifdef __ARM_NEON
+    #include <arm_neon.h>
 #endif
 
 
@@ -187,41 +187,47 @@ uint32_t sad_pipelining_with_unroll(int stride, const uint8_t cur_frame[][stride
 
 
 // TODO: Would be similar as the one above but using neo instructions
+#ifdef __ARM_NEON
 uint32_t sad_neon(int stride, const uint8_t cur_frame[][stride], const uint8_t next_frame[][stride], int x, int y, int r, int s){
 
-    int diff1 , diff2 , sad = 0;
-    int i , j;
+    // Re casts these back into big block painters since that works better for NEON
+    const uint8_t *cur = &cur_frame[y][x];
+    const uint8_t *ref = &next_frame[y + s][x + r];
 
-    /* for( i =0; i <16; i ++){ */
-    /*     for( j =0; j <16; j +=4) { */
-    /*         diff1 = cur_frame [ y + i ][ x + j ] - next_frame [( y + s ) + i ][( x + r ) + j ]; */
-    /*         diff2 = cur_frame [ y + i ][ x + j +1] - next_frame [( y + s ) + i ][( x + r ) + j +1]; */
+    uint16x8_t acc_lo = vdupq_n_u16(0);
+    uint16x8_t acc_hi = vdupq_n_u16(0);
 
-    /*         if( diff1 < 0){ */
-    /*             sad -= diff1 ; */
-    /*         }else{ */
-    /*             sad += diff1 ; */
-    /*         } */
-
-    /*         if( diff2 < 0){ */
-    /*             sad -= diff2 ; */
-    /*         }else{ */
-    /*             sad += diff2 ; */
-    /*         } */
-    /*     } */
-    /* } */
+    int i;
+    uint32_t sad;
 
     for( i =0; i <16; i ++){
-      // TODO: add proper neon intrinsics
-      // load with vld1q_u8(ptr) cur and next
-      // take abs diff on both
-      // accumulate
-      // add to sad
+        // TODO: add proper neon intrinsics
+
+        // load with vld1q_u8(ptr) cur and next
+        uint8x16_t c = vld1q_u8(cur); // 16 pixels of cur row
+        uint8x16_t n = vld1q_u8(ref); // 16 pixels of ref row
+
+
+        // take abs diff on both
+        // accumulate
+        // add to sad
+        // acc += |c - n|, widening 8-bit diffs into 16-bit lanes
+        acc_lo = vabal_u8(acc_lo, vget_low_u8(c), vget_low_u8(n));
+        acc_hi = vabal_u8(acc_hi, vget_high_u8(c), vget_high_u8(n));
+
+        cur += stride;                  // down one image row
+        ref += stride;
 
     }
+    // Fold 16 lanes -> 1 scalar (runs once per block, cost is noise).
+    uint16x8_t acc  = vaddq_u16(acc_lo, acc_hi);      // 8 lanes, max 8160
+    uint32x4_t s32  = vpaddlq_u16(acc);               // pairwise, 4 x 32-bit
+    uint64x2_t s64  = vpaddlq_u32(s32);               // 2 x 64-bit
+    sad = (uint32_t)(vgetq_lane_u64(s64, 0) + vgetq_lane_u64(s64, 1));
     return sad;
 
 }
+#endif
 
 // TODO: This can be our implementation that will use a custom sad instruction
 uint32_t sad_custom_asm(int stride, const uint8_t cur_frame[][stride], const uint8_t next_frame[][stride], int x, int y, int r, int s){
@@ -272,7 +278,7 @@ void find_motion_vector(int w, int h, const uint8_t cur_frame[h][w], const uint8
 #ifdef SAD_BASELINE
       cur_sad = sad_baseline(w, cur_frame, next_frame, x, y, i, j); // note stride is first param now so indexing works nice
 #endif
-#ifdef SAD_NEON
+#if defined(SAD_NEON) && defined(__ARM_NEON)
       cur_sad = sad_neon(w, cur_frame, next_frame, x, y, i, j); // note stride is first param now so indexing works nice
 #endif
 #ifdef SAD_ASM
