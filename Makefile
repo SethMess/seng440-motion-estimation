@@ -13,7 +13,7 @@ NONVM_CFLAGS = -O3
 VM_VARIANTS = baseline unroll neon asm pipeline
 NONVM_VARIANTS = non-vm-baseline non-vm-unroll non-vm-pipeline
 
-all: baseline neon asm pipeline
+all: baseline neon asm pipeline unroll
 
 non-vm: non-vm-baseline non-vm-unroll non-vm-pipeline
 
