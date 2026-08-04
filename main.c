@@ -207,7 +207,24 @@ uint32_t sad_neon(int stride, const uint8_t cur_frame[][stride], const uint8_t n
 
 // TODO: This can be our implementation that will use a custom sad instruction
 uint32_t sad_custom_asm(int stride, const uint8_t cur_frame[][stride], const uint8_t next_frame[][stride], int x, int y, int r, int s){
-  return 0;
+#ifdef __ARM_NEON
+    const uint8_t *cur = &cur_frame[y][x];
+    const uint8_t *ref = &next_frame[y + s][x + r];
+    uint32_t sad = 0;
+
+    for (int i = 0; i < 16; i++) {
+        for (int j = 0; j < 16; j += 4) {
+            uint32_t a, b;
+            memcpy(&a, cur + j, 4);        // 4 packed pixels, alignment-safe
+            memcpy(&b, ref + j, 4);
+            __asm__("usada8 %0, %1, %2, %0"
+                    : "+r"(sad)            // Rd and Ra are both 'sad'
+                    : "r"(a), "r"(b));
+        }
+        cur += stride;  ref += stride;
+    }
+    return sad;
+#endif
 }
 
 // NOTE: SAD function is defined here
@@ -262,12 +279,12 @@ void find_motion_vector(int w, int h, const uint8_t cur_frame[h][w], const uint8
   *best_s = 0; // default to 0 if all SAD values are the same
   uint32_t cur_sad;
   int i,j;
-  for(j = -BLOCK_SIZE; j <= BLOCK_SIZE; j++) {
-    if((y + j) < 0 || (y + j) > (h-BLOCK_SIZE)) {
+  for(j = -SEARCH_RANGE; j <= SEARCH_RANGE; j++) {
+    if((y + j) < 0 || (y + j) > (h-SEARCH_RANGE)) {
       continue;
     }
-    for(i = -BLOCK_SIZE; i <= BLOCK_SIZE; i++) {
-      if((x + i) < 0 || (x + i) > (w-BLOCK_SIZE)) {
+    for(i = -SEARCH_RANGE; i <= SEARCH_RANGE; i++) {
+      if((x + i) < 0 || (x + i) > (w-SEARCH_RANGE)) {
         continue;
       }
       if (i == 0 && j == 0) continue; // already have this one from the initial calc above
@@ -318,6 +335,9 @@ int main(int argc, char *argv[]) {
 
     const char* frame1 = "frames/frame1.pgm";
     const char* frame2 = "frames/frame2.pgm";
+
+    /* const char* frame1 = "frames/second-frame1.pgm"; */
+    /* const char* frame2 = "frames/second-frame2.pgm"; */
 
     int width;
     int height;
