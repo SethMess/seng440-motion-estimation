@@ -1,0 +1,27 @@
+--------------------------------------------------------------------------------
+Profile data file 'Results/callgrind_asm.out' (creator: callgrind-3.24.0)
+--------------------------------------------------------------------------------
+I1 cache: 
+D1 cache: 
+LL cache: 
+Timerange: Basic block 0 - 3891443
+Trigger: Program termination
+Profiled target:  ./asm (PID 5092, part 1)
+Events recorded:  Ir
+Events shown:     Ir
+Event sort order: Ir
+Thresholds:       99
+Include dirs:     
+User annotated:   
+Auto-annotation:  on
+
+--------------------------------------------------------------------------------
+Ir                   
+--------------------------------------------------------------------------------
+133,709,666 (100.0%)  PROGRAM TOTALS
+
+--------------------------------------------------------------------------------
+Ir                    file:function
+--------------------------------------------------------------------------------
+133,429,534 (99.79%)  ???:find_motion_vector'2 [/home/student/seng440/seng440-motion-estimation/asm]
+

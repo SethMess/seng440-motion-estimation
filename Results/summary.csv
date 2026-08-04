@@ -1,0 +1,6 @@
+variant,total_Ir,sad_Ir,text_bytes
+baseline,625335967,0,8704
+unroll,666261779,0,8668
+pipeline,625354495,0,8708
+asm,133709666,0,9808
+neon,37907918,0,8484
