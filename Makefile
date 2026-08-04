@@ -21,9 +21,6 @@ unroll: main.c
 pipeline: main.c
 	gcc $(CFLAGS) -DSAD_PIPELINE main.c -o pipeline
 
-pipeline_unroll: main.c
-	gcc $(CFLAGS) -DSAD_PIPELINE_UNROLL main.c -o pipeline_unroll
-
 neon: main.c
 	gcc $(CFLAGS) -DSAD_NEON main.c -o neon
 

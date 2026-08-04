@@ -1,6 +1,8 @@
 *.exe
 *.asm
 baseline
+unroll
+pipeline
 neon
 asm
 main
