@@ -1,18 +1,14 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #ifdef __ARM_NEON
     #include <arm_neon.h>
 #endif
 
-
-// Size of comparison blocks
-#define BLOCK_SIZE 16
-// Amount of pixels to search on either side of the search block
-#define SEARCH_RANGE 16
-#define FRAME_WIDTH 320
-#define FRAME_HEIGHT 240
+#include "main.h"
+#include "test_utils.h"
 
 // TODO: maybe have a struct for storing the frames?
 
@@ -214,6 +210,22 @@ uint32_t sad_custom_asm(int stride, const uint8_t cur_frame[][stride], const uin
   return 0;
 }
 
+// NOTE: SAD function is defined here
+// Picks the SAD implementation this binary was built with (exactly one
+// SAD_* macro is defined per Makefile target), so call sites just say
+// SAD_FN(...) instead of repeating the #ifdef chain at every call site.
+#if defined(SAD_BASELINE)
+  #define SAD_FN sad_baseline
+#elif defined(SAD_UNROLL)
+  #define SAD_FN sad_unrolling
+#elif defined(SAD_NEON) && defined(__ARM_NEON)
+  #define SAD_FN sad_neon
+#elif defined(SAD_ASM)
+  #define SAD_FN sad_custom_asm
+#elif defined(SAD_PIPELINE)
+  #define SAD_FN sad_pipelining
+#endif
+
 /**
  * find_motion_vector — best-match search for ONE block.
  *
@@ -242,7 +254,10 @@ uint32_t sad_custom_asm(int stride, const uint8_t cur_frame[][stride], const uin
  */
 void find_motion_vector(int w, int h, const uint8_t cur_frame[h][w], const uint8_t next_frame[h][w],
                         int x, int y, int *best_r, int *best_s) {
-  uint32_t min_sad = 65280; // max SAD return value
+  // Seed with the actual SAD at the zero offset (rather than a magic max
+  // constant) so the zero vector wins ties by construction: the comparison
+  // below stays strict '<', and a candidate has to beat it, not just match it.
+  uint32_t min_sad = SAD_FN(w, cur_frame, next_frame, x, y, 0, 0);
   *best_r = 0; // default to 0 if all SAD values are the same
   *best_s = 0; // default to 0 if all SAD values are the same
   uint32_t cur_sad;
@@ -255,21 +270,8 @@ void find_motion_vector(int w, int h, const uint8_t cur_frame[h][w], const uint8
       if((x + i) < 0 || (x + i) > (w-BLOCK_SIZE)) {
         continue;
       }
-#ifdef SAD_BASELINE
-      cur_sad = sad_baseline(w, cur_frame, next_frame, x, y, i, j); // note stride is first param now so indexing works nice
-#endif
-#ifdef SAD_UNROLL
-      cur_sad = sad_unrolling(w, cur_frame, next_frame, x, y, i, j);
-#endif
-#if defined(SAD_NEON) && defined(__ARM_NEON)
-      cur_sad = sad_neon(w, cur_frame, next_frame, x, y, i, j); // note stride is first param now so indexing works nice
-#endif
-#ifdef SAD_ASM
-      cur_sad = sad_custom_asm(w, cur_frame, next_frame, x, y, i, j); // note stride is first param now so indexing works nice
-#endif
-#ifdef SAD_PIPELINE
-      cur_sad = sad_pipelining(w, cur_frame, next_frame, x, y, i, j);
-#endif
+      if (i == 0 && j == 0) continue; // already have this one from the initial calc above
+      cur_sad = SAD_FN(w, cur_frame, next_frame, x, y, i, j);
       if(cur_sad < min_sad) {
         min_sad = cur_sad;
         *best_r = i;
@@ -277,8 +279,9 @@ void find_motion_vector(int w, int h, const uint8_t cur_frame[h][w], const uint8
       }
     }
   }
+#ifdef DEBUG_PRINT
   printf("sad value: %d at (%d %d)\n", min_sad, x, y);
-
+#endif
 }
 
 /**
@@ -293,11 +296,12 @@ void find_motion_vector(int w, int h, const uint8_t cur_frame[h][w], const uint8
  * @param next_frame    Next frame buffer.
  */
 void find_all_motion_vectors(int w, int h, const uint8_t cur_frame[h][w],
-                             const uint8_t next_frame[h][w]  /*, int best_rs[][], int best_ss[][]*/) {
+                             const uint8_t next_frame[h][w], int best_rs[h/BLOCK_SIZE][w/BLOCK_SIZE],
+                             int best_ss[h/BLOCK_SIZE][w/BLOCK_SIZE]) {
 
     /* int num_blocks = (w / BLOCK_SIZE) * (h / BLOCK_SIZE); */
-    int best_rs[h / BLOCK_SIZE][w / BLOCK_SIZE]; // horizontal motion vector
-    int best_ss[h / BLOCK_SIZE][w / BLOCK_SIZE]; // vertical motion vector
+    /* int best_rs[h / BLOCK_SIZE][w / BLOCK_SIZE]; // horizontal motion vector */
+    /* int best_ss[h / BLOCK_SIZE][w / BLOCK_SIZE]; // vertical motion vector */
 
     int i, j;
 
@@ -309,8 +313,8 @@ void find_all_motion_vectors(int w, int h, const uint8_t cur_frame[h][w],
 }
 
 
-int main() {
-    printf("Hello World!\n");
+
+int main(int argc, char *argv[]) {
 
     const char* frame1 = "frames/frame1.pgm";
     const char* frame2 = "frames/frame2.pgm";
@@ -321,11 +325,25 @@ int main() {
     uint8_t *frame1_buffer = load_frame(frame1, &width, &height); // cur frame
     uint8_t *frame2_buffer = load_frame(frame2, &width, &height); // next frame
 
+    if (argc > 1 && strcmp(argv[1], "--selftest") == 0) {
+        // Two shifts to exercise both halves of the search window.
+        int rc = run_selftest(width, height, frame1_buffer, 3, 1);
+        rc += run_selftest(width, height, frame1_buffer, -3, -2);
+        free(frame1_buffer); free(frame2_buffer);
+        return rc;                                // exit code = summed test results
+    }
+
     // TODO: make sure this casting is correct
     const uint8_t (*cur_frame)[width] = (const uint8_t (*)[width]) frame1_buffer;  // newer = current
     const uint8_t (*next_frame)[width] = (const uint8_t (*)[width]) frame2_buffer;  // older = reference
 
-    find_all_motion_vectors(width, height, cur_frame, next_frame);
+    int bw = width / BLOCK_SIZE, bh = height / BLOCK_SIZE;
+    int best_rs[bh][bw], best_ss[bh][bw];
+
+    find_all_motion_vectors(width, height, cur_frame, next_frame, best_rs, best_ss);
+    draw_motion_vectors(width, height, frame1_buffer, bw, bh,
+                        best_rs, best_ss, "vectors.pgm");
+    /* find_all_motion_vectors(width, height, cur_frame, next_frame); */
 
     free(frame1_buffer);
     free(frame2_buffer);
