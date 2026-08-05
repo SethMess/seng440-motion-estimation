@@ -10,10 +10,7 @@
 #include "main.h"
 #include "test_utils.h"
 
-// TODO: maybe have a struct for storing the frames?
 
-
-// TODO: Seth: load frame files to two malloc buffers DONE?
 // Read a PGM frame file into malloc buffer
 uint8_t *load_frame (const char *path, int *w, int *h){
 
@@ -37,26 +34,7 @@ uint8_t *load_frame (const char *path, int *w, int *h){
   return frame_buffer;
 }
 
-// Can remove this probably
-// This is starting as the unoptimised version from slide 11 of the pdf
-/* int oneBlockOfImage_unoptimized(){ */
-  /* int A [16][16] , B [16][16] , diff , sad = 0; */
-  /* int i , j ; */
 
-  /* for( i =0; i <16; i ++) */
-  /*   for( j =0; j <16; j ++) { */
-  /*     diff = A [ x + i ][ y + j ] - B [( x + r ) + i ][( y + s ) + j ]; */
-  /*     if( diff < 0){ */
-  /*       sad -= diff ; */
-  /*     }else{ */
-  /*       sad += diff ; */
-  /*     } */
-  /*   } */
-  /* return 0; */
-/* } */
-
-
-// TODO: integrate starter code into an actual function// TODO:  integrate starter code into an actual function
 // Sum |cur - ref| over one 16x16 block; (x,y) = block pos, (r,s) = offset.
 // One implementation per variant, same signature so they're interchangeable.
 /**
@@ -124,6 +102,7 @@ uint32_t sad_unrolling(int stride, const uint8_t cur_frame[][stride], const uint
                 sad += diff1 ;
             }
 
+            // moved diff calculation here to improve assembly generation.
             diff2 = cur_frame [ y + i ][ x + j +1] - next_frame [( y + s ) + i ][( x + r ) + j +1];
 
             if( diff2 < 0){
@@ -163,7 +142,6 @@ uint32_t sad_pipelining(int stride, const uint8_t cur_frame[][stride], const uin
 }
 
 
-// TODO: Would be similar as the one above but using neo instructions
 #ifdef __ARM_NEON
 uint32_t sad_neon(int stride, const uint8_t cur_frame[][stride], const uint8_t next_frame[][stride], int x, int y, int r, int s){
 
@@ -178,16 +156,13 @@ uint32_t sad_neon(int stride, const uint8_t cur_frame[][stride], const uint8_t n
     uint32_t sad;
 
     for( i =0; i <16; i ++){
-        // TODO: add proper neon intrinsics
 
         // load with vld1q_u8(ptr) cur and next
         uint8x16_t c = vld1q_u8(cur); // 16 pixels of cur row
         uint8x16_t n = vld1q_u8(ref); // 16 pixels of ref row
 
 
-        // take abs diff on both
-        // accumulate
-        // add to sad
+        // take abs diff on both, accumulate, add to sad total.
         // acc += |c - n|, widening 8-bit diffs into 16-bit lanes
         acc_lo = vabal_u8(acc_lo, vget_low_u8(c), vget_low_u8(n));
         acc_hi = vabal_u8(acc_hi, vget_high_u8(c), vget_high_u8(n));
@@ -202,11 +177,9 @@ uint32_t sad_neon(int stride, const uint8_t cur_frame[][stride], const uint8_t n
     uint64x2_t s64  = vpaddlq_u32(s32);               // 2 x 64-bit
     sad = (uint32_t)(vgetq_lane_u64(s64, 0) + vgetq_lane_u64(s64, 1));
     return sad;
-
 }
 #endif
 
-// TODO: This can be our implementation that will use a custom sad instruction
 uint32_t sad_custom_asm(int stride, const uint8_t cur_frame[][stride], const uint8_t next_frame[][stride], int x, int y, int r, int s){
 #ifdef __ARM_NEON
     const uint8_t *cur = &cur_frame[y][x];
@@ -354,7 +327,6 @@ int main(int argc, char *argv[]) {
         return rc;                                // exit code = summed test results
     }
 
-    // TODO: make sure this casting is correct
     const uint8_t (*cur_frame)[width] = (const uint8_t (*)[width]) frame1_buffer;  // newer = current
     const uint8_t (*next_frame)[width] = (const uint8_t (*)[width]) frame2_buffer;  // older = reference
 
