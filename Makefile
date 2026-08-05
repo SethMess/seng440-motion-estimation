@@ -7,7 +7,7 @@
 
 SRCS = main.c test_utils.c
 
-CFLAGS = -O3 -mcpu=cortex-a15 -mfpu=neon -mfloat-abi=hard
+CFLAGS = -O3 -mcpu=cortex-a15 -mfpu=neon -g
 NONVM_CFLAGS = -O3
 
 VM_VARIANTS = baseline unroll neon asm pipeline

@@ -117,13 +117,14 @@ uint32_t sad_unrolling(int stride, const uint8_t cur_frame[][stride], const uint
     for( i =0; i <16; i ++){
         for( j =0; j <16; j +=2) {
             diff1 = cur_frame [ y + i ][ x + j ] - next_frame [( y + s ) + i ][( x + r ) + j ];
-            diff2 = cur_frame [ y + i ][ x + j +1] - next_frame [( y + s ) + i ][( x + r ) + j +1];
 
             if( diff1 < 0){
                 sad -= diff1 ;
             }else{
                 sad += diff1 ;
             }
+
+            diff2 = cur_frame [ y + i ][ x + j +1] - next_frame [( y + s ) + i ][( x + r ) + j +1];
 
             if( diff2 < 0){
                 sad -= diff2 ;
