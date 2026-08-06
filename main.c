@@ -149,8 +149,8 @@ uint32_t sad_neon(int stride, const uint8_t cur_frame[][stride], const uint8_t n
     const uint8_t *cur = &cur_frame[y][x];
     const uint8_t *ref = &next_frame[y + s][x + r];
 
-    uint16x8_t acc_lo = vdupq_n_u16(0);
-    uint16x8_t acc_hi = vdupq_n_u16(0);
+    uint16x8_t acc_lo = vdupq_n_u16(0); // register lanes for accumulating low pixel values
+    uint16x8_t acc_hi = vdupq_n_u16(0); // register lanes for accumulating high pixel values
 
     int i;
     uint32_t sad;
@@ -161,10 +161,11 @@ uint32_t sad_neon(int stride, const uint8_t cur_frame[][stride], const uint8_t n
         uint8x16_t c = vld1q_u8(cur); // 16 pixels of cur row
         uint8x16_t n = vld1q_u8(ref); // 16 pixels of ref row
 
-
         // take abs diff on both, accumulate, add to sad total.
         // acc += |c - n|, widening 8-bit diffs into 16-bit lanes
+        // accumulates and widens bytes 0 - 7 into a full new 128 bit register
         acc_lo = vabal_u8(acc_lo, vget_low_u8(c), vget_low_u8(n));
+        // accumulates and widens bytes 8 - 15 into a full new 128 bit register
         acc_hi = vabal_u8(acc_hi, vget_high_u8(c), vget_high_u8(n));
 
         cur += stride;                  // down one image row
@@ -336,7 +337,6 @@ int main(int argc, char *argv[]) {
     find_all_motion_vectors(width, height, cur_frame, next_frame, best_rs, best_ss);
     draw_motion_vectors(width, height, frame1_buffer, bw, bh,
                         best_rs, best_ss, "vectors.pgm");
-    /* find_all_motion_vectors(width, height, cur_frame, next_frame); */
 
     free(frame1_buffer);
     free(frame2_buffer);
